@@ -8,12 +8,14 @@
 #
 
 import os
+import sys
 import argparse
 import pyfits
 import shutil
 
 from astropy.time import Time
 from glob import glob
+from subprocess import Popen, PIPE
 
 class ImportFits:
 
@@ -21,17 +23,34 @@ class ImportFits:
         self.args = args
 
         if (args.year is None):
-            pattern = "%s/20*/*/*.fit" % args.input_dir
+            pattern = "%s/20*/*" % args.input_dir
         elif (args.month is None):
-            pattern = "%s/%04i/*/*.fit" % (args.input_dir, args.year)
+            pattern = "%s/%04i/*" % (args.input_dir, args.year)
         elif (args.day is None):
-            pattern = "%s/%04i/%04i%02i*/*.fit" % (args.input_dir, args.year, args.year, args.month)
+            pattern = "%s/%04i/%04i%02i*" % (args.input_dir, args.year, args.year, args.month)
         else:
-            pattern = "%s/%04i/%04i%02i%02i/*fit" % (args.input_dir, args.year, args.year, args.month, args.day)
+            pattern = "%s/%04i/%04i%02i%02i*" % (args.input_dir, args.year, args.year, args.month, args.day)
+
+        cmd = []
+        cmd.append("find %s -path '%s' -name '*.fit' -printf '%%P\\0'" % (args.input_dir, pattern))
+        cmd.append("rsync -0t --files-from=- %s%s %s" % (args.remote, args.input_dir, args.output_dir))
+
+        cmd = " |".join(cmd)
 
         if __debug__:
             print("args = %s" % args.__dict__)
             print("pattern = %s" % pattern)
+            print("cmd = %s" % cmd)
+
+        pipe = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+        stdout, stderr = pipe.communicate()
+
+        if (pipe.returncode != 0):
+           print("rsync stdout = %s" % stdout)
+           print("rsync stderr = %s" % stderr)
+           sys.exit(1)
+
+        pattern = "%s/*/*/*.fit" % (args.output_dir)
 
         for filename in glob(pattern):
             self.import_fits(filename)
@@ -39,24 +58,29 @@ class ImportFits:
     def import_fits(self, filename):
         print("=== Processing %s ===" % filename)
 
-        image_type = self.get_image_type(filename)
-        night = os.path.basename(os.path.dirname(filename))
-        dst_dir = os.path.join(self.args.output_dir, night, image_type)
+        fits_header = self.get_fits_header(filename)
+
+        dst_dir = os.path.join(os.path.dirname(filename), fits_header["image_type"])
+        if (fits_header["image_type"] == "object"):
+            dst_dir = os.path.join(dst_dir, fits_header["object"])
+
+        dst_filename = os.path.join(dst_dir, os.path.basename(filename))
 
         print("mkdir %s" % dst_dir)
         os.makedirs(dst_dir, exist_ok=True)
 
-        print("copy %s %s" % (filename, dst_dir))
-        shutil.copy(filename, dst_dir)
-
-        dst_filename = os.path.join(dst_dir, os.path.basename(filename))
+        print("move %s %s" % (filename, dst_filename))
+        shutil.move(filename, dst_filename)
 
         self.add_jd(dst_filename)
 
     @staticmethod
-    def get_image_type(filename):
+    def get_fits_header(filename):
         hdulist = pyfits.open(filename, mode="readonly", memmap=True)
         prihdr = hdulist[0].header
+
+        fits_header = {}
+        fits_header["object"] = prihdr["OBJECT"].strip().replace(" ", "_")
 
         if (prihdr["IMAGETYP"] in ["comp", "flat", "zero", "dark"]):
             image_type = prihdr["IMAGETYP"]
@@ -70,7 +94,9 @@ class ImportFits:
 
         hdulist.close()
 
-        return image_type
+        fits_header["image_type"] = image_type
+
+        return fits_header
 
     @staticmethod
     def add_jd(filename):
@@ -94,8 +120,12 @@ def main():
     parser.add_argument("-y", "--year", type=int)
     parser.add_argument("-m", "--month", type=int)
     parser.add_argument("-d", "--day", type=int)
+    parser.add_argument("-r", "--remote", metavar="USER@HOST", default="")
 
     args = parser.parse_args()
+
+    if (args.remote):
+        args.remote = "%s:" % args.remote
 
     ImportFits(args)
 
