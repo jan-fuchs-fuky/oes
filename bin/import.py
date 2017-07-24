@@ -113,14 +113,17 @@ class ImportFits:
         hdulist.close()
 
 def main():
-    parser = argparse.ArgumentParser(description="Importing FITS file.")
+    parser = argparse.ArgumentParser(
+        description="Importing FITS file.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        epilog="See https://github.com/jan-fuchs-fuky/oes for more info.")
 
-    parser.add_argument("-i", "--input-dir", default="/i/data2m/OES")
-    parser.add_argument("-o", "--output-dir", default="/tmp/oes")
+    parser.add_argument("-i", "--input-dir", default="/i/data2m/OES", help="path to OES data")
+    parser.add_argument("-o", "--output-dir", default="/tmp/oes", help="path to output directory")
     parser.add_argument("-y", "--year", type=int)
     parser.add_argument("-m", "--month", type=int)
     parser.add_argument("-d", "--day", type=int)
-    parser.add_argument("-r", "--remote", metavar="USER@HOST", default="")
+    parser.add_argument("-r", "--remote", metavar="USER@HOST", default="", help="download OES data from remote computer over SSH")
 
     args = parser.parse_args()
 
