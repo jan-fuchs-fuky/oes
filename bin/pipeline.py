@@ -4,6 +4,10 @@
 #
 # Author: Jan Fuchs <fuky@asu.cas.cz>
 #
+# http://iraf.noao.edu/docs/spectra.html
+# http://stelweb.asu.cas.cz/~slechta/odbzajem.html
+# http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?instruments
+#
 
 import os
 import sys
@@ -11,6 +15,12 @@ import argparse
 
 from glob import glob
 from pyraf import iraf
+
+#iraf.noao.imutil()
+iraf.noao.imred()
+iraf.noao.imred.ccdred()
+iraf.noao.imred.crutil()
+iraf.noao.imred.echelle()
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(os.path.abspath(__file__)))
 sys.path.append(SCRIPT_PATH)
@@ -20,19 +30,14 @@ class Pipeline:
         self.args = args
 
     def run(self):
-        self.make_mzero()
-        self.make_mcomp()
+        input_pathname = os.path.join(self.args.input_dir, "zero/*.fit")
+        output_filename = os.path.join(self.args.output_dir, "mzero.fit")
+
+        self.zerocombine(input_pathname, output_filename)
 
     @staticmethod
-    def make_mzero():
-        pass
-
-    @staticmethod
-    def make_mcomp():
-        pass
-
-    @staticmethod
-    def imcombine(input_list, output_filename):
+    def imcombine(input_pathname, output_filename):
+        input_list = glob(input_pathname)
         input_filename = os.path.join(SCRIPT_PATH, "../tmp/imcombine.input")
 
         with open(input_filename, "w") as fo:
@@ -40,6 +45,17 @@ class Pipeline:
             fo.write("\n")
 
         iraf.imcombine("@%s" % input_filename, output_filename, combine="median")
+
+    @staticmethod
+    def zerocombine(input_pathname, output_filename):
+        input_list = glob(input_pathname)
+        input_filename = os.path.join(SCRIPT_PATH, "../tmp/zerocombine.input")
+
+        with open(input_filename, "w") as fo:
+            fo.write("\n".join(input_list))
+            fo.write("\n")
+
+        iraf.noao.imred.ccdred.zerocombine(input="@%s" % input_filename, output=output_filename, combine="median")
 
 def main():
     parser = argparse.ArgumentParser(
