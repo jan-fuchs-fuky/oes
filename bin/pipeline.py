@@ -7,7 +7,6 @@
 # http://iraf.noao.edu/docs/spectra.html
 # http://stelweb.asu.cas.cz/~slechta/odbzajem.html
 #
-# http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?imarith
 # http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?instruments
 #
 
@@ -26,6 +25,7 @@ iraf.noao.imred()
 iraf.noao.imred.ccdred()
 iraf.noao.imred.crutil()
 iraf.noao.imred.echelle()
+iraf.noao.imred.crutil()
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(os.path.abspath(__file__)))
 sys.path.append(SCRIPT_PATH)
@@ -86,11 +86,33 @@ class Pipeline:
             fo.write("\n".join(output_list))
             fo.write("\n")
 
+        # http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?imarith
         iraf.images.imutil.imarith(
             operand1="@%s" % input_filename,
             op='-',
             operand2="/tmp/oes/mzero.fit",
-            result="@%s" % output_filename)
+            result="@%s" % output_filename,
+        )
+
+        output_list = []
+        for item in input_list:
+            filename = os.path.basename(item)
+            filename = os.path.join("/tmp/oes", "zc_%s" % filename)
+            output_list.append(filename)
+
+        with open(output_filename, "w") as fo:
+            fo.write("\n".join(output_list))
+            fo.write("\n")
+
+        # http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?cosmicrays.hlp
+        # iraf.noao.imred.crutil.cosmicrays.lParam()
+        iraf.noao.imred.crutil.cosmicray(
+            input="@%s" % input_filename,
+            output="@%s" % output_filename,
+            fluxratio=10,
+            window="7",
+            interactive="no",
+        )
 
 def main():
     parser = argparse.ArgumentParser(
