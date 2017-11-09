@@ -13,6 +13,7 @@
 import os
 import sys
 import time
+import tempfile
 import argparse
 
 from glob import glob
@@ -45,32 +46,30 @@ class Pipeline:
     @staticmethod
     def imcombine(input_pathname, output_filename):
         input_list = glob(input_pathname)
-        input_filename = os.path.join(SCRIPT_PATH, "../tmp/imcombine.input")
 
-        with open(input_filename, "w") as fo:
+        with tempfile.NamedTemporaryFile(mode="w") as fo:
             fo.write("\n".join(input_list))
             fo.write("\n")
+            fo.flush()
 
-        iraf.imcombine("@%s" % input_filename, output_filename, combine="median")
+            iraf.imcombine("@%s" % fo.name, output_filename, combine="median")
 
     # TODO: umoznit beh vice instaci tj. generovat jedinecny nazev pro zerocombine.input a po
     # akci ho mazat (stejne tak u fce imcombine())
     @staticmethod
     def zerocombine(input_pathname, output_filename):
         input_list = glob(input_pathname)
-        input_filename = os.path.join(SCRIPT_PATH, "../tmp/zerocombine.input")
 
-        with open(input_filename, "w") as fo:
+        with tempfile.NamedTemporaryFile(mode="w") as fo:
             fo.write("\n".join(input_list))
             fo.write("\n")
+            fo.flush()
 
-        iraf.noao.imred.ccdred.zerocombine(input="@%s" % input_filename, output=output_filename, combine="median")
+            iraf.noao.imred.ccdred.zerocombine(input="@%s" % fo.name, output=output_filename, combine="median")
 
     @staticmethod
     def process_flats(input_pathname):
         input_list = glob(input_pathname)
-        input_filename = os.path.join(SCRIPT_PATH, "../tmp/flat_mzero.input")
-        output_filename = os.path.join(SCRIPT_PATH, "../tmp/flat_mzero.output")
 
         output_list = []
         for item in input_list:
@@ -78,41 +77,44 @@ class Pipeline:
             filename = os.path.join("/tmp/oes", "z_%s" % filename)
             output_list.append(filename)
 
-        with open(input_filename, "w") as fo:
+        with tempfile.NamedTemporaryFile(mode="w") as fo:
             fo.write("\n".join(input_list))
             fo.write("\n")
+            fo.flush()
 
-        with open(output_filename, "w") as fo:
-            fo.write("\n".join(output_list))
-            fo.write("\n")
+            with tempfile.NamedTemporaryFile(mode="w") as z_fo:
+                z_fo.write("\n".join(output_list))
+                z_fo.write("\n")
+                z_fo.flush()
 
-        # http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?imarith
-        iraf.images.imutil.imarith(
-            operand1="@%s" % input_filename,
-            op='-',
-            operand2="/tmp/oes/mzero.fit",
-            result="@%s" % output_filename,
-        )
+                # http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?imarith
+                iraf.images.imutil.imarith(
+                    operand1="@%s" % fo.name,
+                    op='-',
+                    operand2="/tmp/oes/mzero.fit",
+                    result="@%s" % z_fo.name,
+                )
 
-        output_list = []
-        for item in input_list:
-            filename = os.path.basename(item)
-            filename = os.path.join("/tmp/oes", "zc_%s" % filename)
-            output_list.append(filename)
+                output_list = []
+                for item in input_list:
+                    filename = os.path.basename(item)
+                    filename = os.path.join("/tmp/oes", "zc_%s" % filename)
+                    output_list.append(filename)
 
-        with open(output_filename, "w") as fo:
-            fo.write("\n".join(output_list))
-            fo.write("\n")
+                with tempfile.NamedTemporaryFile(mode="w") as zc_fo:
+                    zc_fo.write("\n".join(output_list))
+                    zc_fo.write("\n")
+                    zc_fo.flush()
 
-        # http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?cosmicrays.hlp
-        # iraf.noao.imred.crutil.cosmicrays.lParam()
-        iraf.noao.imred.crutil.cosmicray(
-            input="@%s" % input_filename,
-            output="@%s" % output_filename,
-            fluxratio=10,
-            window="7",
-            interactive="no",
-        )
+                    # http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?cosmicrays.hlp
+                    # iraf.noao.imred.crutil.cosmicrays.lParam()
+                    iraf.noao.imred.crutil.cosmicray(
+                        input="@%s" % z_fo.name,
+                        output="@%s" % zc_fo.name,
+                        fluxratio=10,
+                        window="7",
+                        interactive="no",
+                    )
 
 def main():
     parser = argparse.ArgumentParser(
