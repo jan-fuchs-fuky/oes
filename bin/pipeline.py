@@ -82,6 +82,36 @@ class Pipeline:
                 interactive="no",
             )
 
+    def apflatten(self, input_list, input_filename):
+        output_list = []
+        for item in input_list:
+            filename = os.path.basename(item)
+            filename = os.path.join(self.args.output_dir, "fza_%s" % filename)
+            output_list.append(filename)
+
+        with tempfile.NamedTemporaryFile(mode="w") as fo:
+            fo.write("\n".join(output_list))
+            fo.write("\n")
+            fo.flush()
+
+            # http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?apflatten
+            # iraf.noao.twodspec.apextract.apflatten.lParam()
+            iraf.noao.twodspec.apextract.apflatten(
+                input="@%s" % input_filename,
+                output="@%s" % fo.name,
+                find="yes",
+                resize="yes",
+                edit="yes",
+                trace="yes",
+                fittrace="yes",
+                function = "legendre",
+                order = 5,
+                low_reject = 3.0,
+                high_reject = 3.0,
+                niterate = 0,
+                grow = 0.0,
+            )
+
     def process_image(self, input_pathname, image_type):
         if image_type not in ["flat", "comp", "object"]:
             raise Exception("Unsupproted image type '%s'" % image_type)
@@ -113,7 +143,9 @@ class Pipeline:
                     result="@%s" % z_fo.name,
                 )
 
-                if (image_type != "flat"):
+                if (image_type == "flat"):
+                    self.apflatten(input_list, z_fo.name)
+                else:
                     self.cosmicrays(input_list, z_fo.name, prefix)
 
 def main():
@@ -139,6 +171,9 @@ def main():
     iraf.noao.imred.crutil()
     iraf.noao.imred.echelle()
     iraf.noao.imred.crutil()
+
+    iraf.noao.twodspec()
+    iraf.noao.twodspec.apextract()
 
     pipeline = Pipeline(args)
     pipeline.run()
