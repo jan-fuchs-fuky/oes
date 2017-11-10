@@ -34,11 +34,11 @@ class Pipeline:
         input_pathname = os.path.join(self.args.input_dir, "flat/*.fit")
         self.process_image(input_pathname, "flat")
 
-        input_pathname = os.path.join(self.args.input_dir, "object/*.fit")
-        self.process_image(input_pathname, "object")
-
         input_pathname = os.path.join(self.args.input_dir, "comp/*.fit")
         self.process_image(input_pathname, "comp")
+
+        input_pathname = os.path.join(self.args.input_dir, "object/*/*.fit")
+        self.process_image(input_pathname, "object")
 
     def imcombine(self, input_pathname, output_filename):
         input_list = glob(input_pathname)
