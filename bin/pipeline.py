@@ -28,14 +28,19 @@ class Pipeline:
 
     def run(self):
         input_pathname = os.path.join(self.args.input_dir, "zero/*.fit")
-        output_filename = os.path.join(self.args.output_dir, "mzero.fit")
-        self.zerocombine(input_pathname, output_filename)
+        self.mzero_filename = os.path.join(self.args.output_dir, "mzero.fit")
+        self.zerocombine(input_pathname, self.mzero_filename)
 
         input_pathname = os.path.join(self.args.input_dir, "flat/*.fit")
-        self.process_flats(input_pathname)
+        self.process_image(input_pathname, "flat")
 
-    @staticmethod
-    def imcombine(input_pathname, output_filename):
+        input_pathname = os.path.join(self.args.input_dir, "object/*.fit")
+        self.process_image(input_pathname, "object")
+
+        input_pathname = os.path.join(self.args.input_dir, "comp/*.fit")
+        self.process_image(input_pathname, "comp")
+
+    def imcombine(self, input_pathname, output_filename):
         input_list = glob(input_pathname)
 
         with tempfile.NamedTemporaryFile(mode="w") as fo:
@@ -45,10 +50,7 @@ class Pipeline:
 
             iraf.imcombine("@%s" % fo.name, output_filename, combine="median")
 
-    # TODO: umoznit beh vice instaci tj. generovat jedinecny nazev pro zerocombine.input a po
-    # akci ho mazat (stejne tak u fce imcombine())
-    @staticmethod
-    def zerocombine(input_pathname, output_filename):
+    def zerocombine(self, input_pathname, output_filename):
         input_list = glob(input_pathname)
 
         with tempfile.NamedTemporaryFile(mode="w") as fo:
@@ -58,14 +60,39 @@ class Pipeline:
 
             iraf.noao.imred.ccdred.zerocombine(input="@%s" % fo.name, output=output_filename, combine="median")
 
-    @staticmethod
-    def process_flats(input_pathname):
+    def cosmicrays(self, input_list, input_filename, prefix):
+        output_list = []
+        for item in input_list:
+            filename = os.path.basename(item)
+            filename = os.path.join(self.args.output_dir, "%szc_%s" % (prefix, filename))
+            output_list.append(filename)
+
+        with tempfile.NamedTemporaryFile(mode="w") as fo:
+            fo.write("\n".join(output_list))
+            fo.write("\n")
+            fo.flush()
+
+            # http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?cosmicrays.hlp
+            # iraf.noao.imred.crutil.cosmicrays.lParam()
+            iraf.noao.imred.crutil.cosmicray(
+                input="@%s" % input_filename,
+                output="@%s" % fo.name,
+                fluxratio=10,
+                window="7",
+                interactive="no",
+            )
+
+    def process_image(self, input_pathname, image_type):
+        if image_type not in ["flat", "comp", "object"]:
+            raise Exception("Unsupproted image type '%s'" % image_type)
+
+        prefix = image_type[0]
         input_list = glob(input_pathname)
 
         output_list = []
         for item in input_list:
             filename = os.path.basename(item)
-            filename = os.path.join("/tmp/oes", "z_%s" % filename)
+            filename = os.path.join(self.args.output_dir, "%sz_%s" % (prefix, filename))
             output_list.append(filename)
 
         with tempfile.NamedTemporaryFile(mode="w") as fo:
@@ -82,30 +109,12 @@ class Pipeline:
                 iraf.images.imutil.imarith(
                     operand1="@%s" % fo.name,
                     op='-',
-                    operand2="/tmp/oes/mzero.fit",
+                    operand2=self.mzero_filename,
                     result="@%s" % z_fo.name,
                 )
 
-                output_list = []
-                for item in input_list:
-                    filename = os.path.basename(item)
-                    filename = os.path.join("/tmp/oes", "zc_%s" % filename)
-                    output_list.append(filename)
-
-                with tempfile.NamedTemporaryFile(mode="w") as zc_fo:
-                    zc_fo.write("\n".join(output_list))
-                    zc_fo.write("\n")
-                    zc_fo.flush()
-
-                    # http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?cosmicrays.hlp
-                    # iraf.noao.imred.crutil.cosmicrays.lParam()
-                    iraf.noao.imred.crutil.cosmicray(
-                        input="@%s" % z_fo.name,
-                        output="@%s" % zc_fo.name,
-                        fluxratio=10,
-                        window="7",
-                        interactive="no",
-                    )
+                if (image_type != "flat"):
+                    self.cosmicrays(input_list, z_fo.name, prefix)
 
 def main():
     parser = argparse.ArgumentParser(
