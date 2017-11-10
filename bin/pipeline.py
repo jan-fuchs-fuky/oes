@@ -19,15 +19,6 @@ import argparse
 from glob import glob
 from pyraf import iraf
 
-iraf.images()
-iraf.images.imutil()
-
-iraf.noao.imred()
-iraf.noao.imred.ccdred()
-iraf.noao.imred.crutil()
-iraf.noao.imred.echelle()
-iraf.noao.imred.crutil()
-
 SCRIPT_PATH = os.path.dirname(os.path.realpath(os.path.abspath(__file__)))
 sys.path.append(SCRIPT_PATH)
 
@@ -126,6 +117,19 @@ def main():
     parser.add_argument("-o", "--output-dir", default="/tmp/oes", help="path to output directory")
 
     args = parser.parse_args()
+
+    if os.listdir(args.output_dir):
+        print("ERROR: Output directory '%s' must be empty" % args.output_dir)
+        sys.exit()
+
+    iraf.images()
+    iraf.images.imutil()
+
+    iraf.noao.imred()
+    iraf.noao.imred.ccdred()
+    iraf.noao.imred.crutil()
+    iraf.noao.imred.echelle()
+    iraf.noao.imred.crutil()
 
     pipeline = Pipeline(args)
     pipeline.run()
