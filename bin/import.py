@@ -31,9 +31,16 @@ class ImportFits:
         else:
             pattern = "%s/%04i/%04i%02i%02i*" % (args.input_dir, args.year, args.year, args.month, args.day)
 
+        find_cmd = "find %s -path '%s' -name '*.fit' -printf '%%P\\0'" % (args.input_dir, pattern)
+
+        remote_rsync = ""
+        if (args.remote):
+            find_cmd = "ssh %s \"%s\"" % (args.remote, find_cmd)
+            remote_rsync = "%s:" % args.remote
+
         cmd = []
-        cmd.append("find %s -path '%s' -name '*.fit' -printf '%%P\\0'" % (args.input_dir, pattern))
-        cmd.append("rsync -0t --files-from=- %s%s %s" % (args.remote, args.input_dir, args.output_dir))
+        cmd.append(find_cmd)
+        cmd.append("rsync -0t --files-from=- %s%s %s" % (remote_rsync, args.input_dir, args.output_dir))
 
         cmd = " |".join(cmd)
 
@@ -126,9 +133,6 @@ def main():
     parser.add_argument("-r", "--remote", metavar="USER@HOST", default="", help="download OES data from remote computer over SSH")
 
     args = parser.parse_args()
-
-    if (args.remote):
-        args.remote = "%s:" % args.remote
 
     ImportFits(args)
 
