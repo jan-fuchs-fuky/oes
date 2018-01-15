@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+#! /usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 
 #
@@ -145,6 +145,13 @@ class Pipeline:
 
                 if (image_type == "flat"):
                     self.apflatten(input_list, z_fo.name)
+
+                    # TODO: otestovat
+                    input_pathname = os.path.join(self.args.output_dir, "zero/fza_*.fit")
+                    norm_mflat_filename = os.path.join(self.args.output_dir, "norm_mflat.fit")
+                    self.imcombine(input_pathname, norm_mflat_filename)
+
+                    #self.cosmicrays(input_list, z_fo.name, prefix)
                 else:
                     self.cosmicrays(input_list, z_fo.name, prefix)
 
