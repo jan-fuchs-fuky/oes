@@ -19,6 +19,14 @@ Import nights 2017 from remote computer:
 $ ./import.py -y 2017 -r astronomer@example.edu
 ```
 
+Examples add_jd.py
+------------------
+
+Add JD to all \*.fit in INPUT_DIR:
+```
+$ ./add_jd.py -i /path/to/fits
+```
+
 License
 -------
 
