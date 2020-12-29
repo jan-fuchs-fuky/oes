@@ -19,6 +19,14 @@ Import nights 2017 from remote computer:
 $ ./import.py -y 2017 -r astronomer@example.edu
 ```
 
+Examples Cron
+-------------
+
+```
+$ crontab -e
+30 12 * * * /opt/bin/import.py -a -i /i/data2m/OES -o /i/kabath-OES/import
+```
+
 Examples add_jd.py
 ------------------
 
