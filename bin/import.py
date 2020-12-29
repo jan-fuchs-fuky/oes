@@ -4,15 +4,15 @@
 #
 # Author: Jan Fuchs <fuky@asu.cas.cz>
 #
-# Depends: libpython3.4-minimal, python3-astropy, python3-pyfits, libpython3.4-stdlib
+# Depends: libpython3.4-minimal, python3-astropy, libpython3.4-stdlib
 #
 
 import os
 import sys
 import argparse
-import pyfits
 import shutil
 
+from astropy.io import fits
 from astropy.time import Time
 from glob import glob
 from subprocess import Popen, PIPE
@@ -83,7 +83,7 @@ class ImportFits:
 
     @staticmethod
     def get_fits_header(filename):
-        hdulist = pyfits.open(filename, mode="readonly", memmap=True)
+        hdulist = fits.open(filename, mode="readonly", memmap=True)
         prihdr = hdulist[0].header
 
         fits_header = {}
@@ -107,7 +107,7 @@ class ImportFits:
 
     @staticmethod
     def add_jd(filename):
-        hdulist = pyfits.open(filename, mode="update", memmap=True)
+        hdulist = fits.open(filename, mode="update", memmap=True)
         prihdr = hdulist[0].header
 
         date_time_str = "%s %s" % (prihdr["DATE-OBS"], prihdr["UT"])
