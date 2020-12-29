@@ -16,11 +16,18 @@ from astropy.io import fits
 from astropy.time import Time
 from glob import glob
 from subprocess import Popen, PIPE
+from datetime import datetime, timedelta
 
 class ImportFits:
 
     def __init__(self, args):
         self.args = args
+
+        if args.actual:
+            dt = datetime.now() - timedelta(days=1)
+            args.year = dt.year
+            args.month = dt.month
+            args.day = dt.day
 
         if (args.year is None):
             pattern = "%s/20*/*" % args.input_dir
@@ -130,6 +137,7 @@ def main():
     parser.add_argument("-y", "--year", type=int)
     parser.add_argument("-m", "--month", type=int)
     parser.add_argument("-d", "--day", type=int)
+    parser.add_argument("-a", "--actual", action="store_true")
     parser.add_argument("-r", "--remote", metavar="USER@HOST", default="", help="download OES data from remote computer over SSH")
 
     args = parser.parse_args()
